@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Klyazma" />
+  <meta name="theme-color" content="#4F46E5" />
+  <title>Klyazma</title>
+  <style>
+    :root {
+      --bg: #f3f4f8;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #4f46e5;
+      --soft: #e0e7ff;
+      --border: #e5e7eb;
+      --danger: #dc2626;
+    }
+    [data-theme="dark"] {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --primary: #818cf8;
+      --soft: #312e81;
+      --border: #2d3140;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding: calc(12px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0; font-size: 1.35rem; font-weight: 800; }
+    button {
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      padding: 10px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.icon {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+    button.ghost {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 6px 8px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .card.current {
+      border-color: var(--primary);
+      background: color-mix(in srgb, var(--soft) 55%, var(--card));
+    }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    .title { font-weight: 700; margin: 6px 0 4px; }
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--primary);
+    }
+    .meta { margin-top: 8px; color: var(--muted); font-size: 0.92rem; display: grid; gap: 4px; }
+    .note {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--bg);
+      font-size: 0.92rem;
+    }
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progress > i {
+      display: block;
+      height: 100%;
+      background: var(--primary);
+    }
+    .timer { color: var(--primary); font-weight: 700; }
+    .banner {
+      background: var(--soft);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .banner-top { display: flex; justify-content: space-between; gap: 8px; }
+    .center { flex: 1; text-align: center; }
+    .center .main { font-weight: 800; font-size: 1.05rem; }
+    .center .sub { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+    .week-nav { display: flex; justify-content: center; gap: 4px; margin: 4px 0 12px; }
+    .empty, .loader { text-align: center; padding: 28px 12px; color: var(--muted); }
+    .error { text-align: center; padding: 28px 12px; color: var(--danger); }
+    #status { min-height: 1.2em; margin-bottom: 8px; font-size: 0.85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Klyazma</h1>
+    <div class="row">
+      <button class="icon" id="btnTheme" type="button">🌓</button>
+      <button class="icon" id="btnRefresh" type="button">↻</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <button class="icon" id="btnDayPrev" type="button">◀</button>
+      <div class="center">
+        <div class="main" id="dayTitle">—</div>
+        <div class="sub" id="daySub"></div>
+      </div>
+      <button class="icon" id="btnDayNext" type="button">▶</button>
+    </div>
+  </div>
+
+  <div class="week-nav">
+    <button class="ghost" id="btnWeekPrev" type="button">← неделя</button>
+    <button class="ghost" id="btnToday" type="button">сегодня</button>
+    <button class="ghost" id="btnWeekNext" type="button">неделя →</button>
+  </div>
+
+  <div id="notifBanner" class="banner" style="display:none;"></div>
+  <div id="updateBanner" class="banner" style="display:none;"></div>
+  <div id="status"></div>
+  <div id="app"><div class="loader">Загрузка…</div></div>
+
+  <script>
+    (function () {
+      var OWNER = "TSAREGRADTSEVFX";
+      var REPO = "schedule-db";
+      var BRANCH = "main";
+      var VZVOD = "31";
+      var TOKEN = atob("Z2l0aHViX3BhdF8xMUNCSlVaN1kwb2ZvaDJJWGxSUnRXX1V5RHpoVzV2NmRoSFhMQk4xYncxOW01NnVrTzB4TmJVU3VCdnVzdUxCQjdGUVdHT1lPMjFOTzZkcFpq");
+
+      var THEME_KEY = "klyazma_theme";
+      var CACHE_KEY = "klyazma_cache_";
+      var NOTIF_KEY = "klyazma_notif_dismiss";
+      var UPDATE_KEY = "klyazma_update_dismiss";
+
+      var app = document.getElementById("app");
+      var statusEl = document.getElementById("status");
+      var dayTitle = document.getElementById("dayTitle");
+      var daySub = document.getElementById("daySub");
+      var notifBanner = document.getElementById("notifBanner");
+      var updateBanner = document.getElementById("updateBanner");
+
+      var selectedDay = startOfDay(new Date());
+      var schedule = null;
+      var currentWeekKey = "";
+
+      function startOfDay(d) {
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }
+      function addDays(d, n) {
+        var x = startOfDay(d);
+        x.setDate(x.getDate() + n);
+        return x;
+      }
+      function mondayOf(d) {
+        var x = startOfDay(d);
+        var wd = (x.getDay() + 6) % 7;
+        x.setDate(x.getDate() - wd);
+        return x;
+      }
+      function pad(n) {
+        return (n < 10 ? "0" : "") + n;
+      }
+      function ymd(d) {
+        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+      }
+      function weekKey(monday) {
+        return pad(monday.getDate()) + "-" + pad(monday.getMonth() + 1) + "-" + monday.getFullYear();
+      }
+      function sameDay(a, b) {
+        return ymd(a) === ymd(b);
+      }
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      function formatRu(d) {
+        return d.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+      }
+      function parseTime(day, hhmm) {
+        var p = String(hhmm || "0:0").split(":");
+        return new Date(day.getFullYear(), day.getMonth(), day.getDate(), Number(p[0]) || 0, Number(p[1]) || 0, 0, 0);
+      }
+      function remain(ms) {
+        if (ms < 0) ms = 0;
+        var t = Math.floor(ms / 1000);
+        var h = Math.floor(t / 3600);
+        var m = Math.floor((t % 3600) / 60);
+        var s = t % 60;
+        if (h > 0) return h + "ч " + pad(m) + "м";
+        return m + "м " + pad(s) + "с";
+      }
+
+      function githubRaw(path) {
+        return fetch(
+          "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/" + path + "?ref=" + BRANCH,
+          {
+            headers: {
+              Authorization: "Bearer " + TOKEN,
+              Accept: "application/vnd.github.v3.raw",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "KlyazmaWeb"
+            }
+          }
+        );
+      }
+
+      function cacheGet(key) {
+        try {
+          var raw = localStorage.getItem(CACHE_KEY + key);
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          return null;
+        }
+      }
+      function cacheSet(key, data) {
+        try {
+          localStorage.setItem(CACHE_KEY + key, JSON.stringify(data));
+        } catch (e) {}
+      }
+
+      function lessonsFor(day) {
+        if (!schedule || !schedule.days) return [];
+        return schedule.days[ymd(day)] || [];
+      }
+
+      function mapFor(day) {
+        var list = lessonsFor(day);
+        var now = new Date();
+        var prev = null, cur = null, next = null;
+        for (var i = 0; i < list.length; i++) {
+          var l = list[i];
+          var a = parseTime(day, l.start);
+          var b = parseTime(day, l.end);
+          if (now > b) prev = l;
+          else if (now >= a && now < b) cur = l;
+          else if (now < a && !next) next = l;
+        }
+        return { previous: prev, current: cur, next: next };
+      }
+
+      function finished(day) {
+        var list = lessonsFor(day);
+        if (!list.length) return true;
+        var last = list[list.length - 1];
+        return new Date() > parseTime(day, last.end);
+      }
+
+      function progress(lesson, day) {
+        var now = new Date();
+        var a = parseTime(day, lesson.start);
+        var b = parseTime(day, lesson.end);
+        if (now <= a) return 0;
+        if (now >= b) return 100;
+        return Math.round(((now - a) / (b - a)) * 100);
+      }
+
+      function card(lesson, opts) {
+        opts = opts || {};
+        var day = opts.day || selectedDay;
+        var badges = "";
+        if (opts.current) badges += '<span class="badge">Сейчас</span> ';
+        if (opts.next) badges += '<span class="badge">Далее</span>';
+        var extra = "";
+        if (opts.current) {
+          var p = progress(lesson, day);
+          var end = parseTime(day, lesson.end);
+          extra =
+            '<div class="row" style="justify-content:space-between;margin-top:8px;">' +
+            '<span class="muted">Прошло ' + p + '%</span>' +
+            '<span class="timer">до конца ' + remain(end - new Date()) + '</span></div>' +
+            '<div class="progress"><i style="width:' + p + '%"></i></div>';
+        } else if (opts.next) {
+          var start = parseTime(day, lesson.start);
+          extra = '<div class="timer" style="margin-top:8px;">через ' + remain(start - new Date()) + '</div>';
+        }
+        var note = (lesson.note || "").trim();
+        return (
+          '<div class="card ' + (opts.current ? "current" : "") + '">' +
+          '<div class="row" style="justify-content:space-between;">' +
+          "<strong>" + esc(lesson.start) + " – " + esc(lesson.end) + "</strong>" +
+          "<div>" + badges + "</div></div>" +
+          '<div class="title">' + esc(lesson.subject || "") + "</div>" +
+          '<div class="meta"><span>👤 ' + esc(lesson.teacher || "—") +
+          "</span><span>📍 " + esc(lesson.room || "—") + "</span></div>" +
+          (note ? '<div class="note">📝 ' + esc(note) + "</div>" : "") +
+          extra +
+          "</div>"
+        );
+      }
+
+      function loadWeek(force) {
+        var mon = mondayOf(selectedDay);
+        var key = weekKey(mon);
+        currentWeekKey = key;
+        statusEl.textContent = "Загрузка…";
+
+        if (!force) {
+          var cached = cacheGet(key);
+          if (cached) {
+            schedule = cached;
+            statusEl.textContent = "";
+            render();
+          }
+        }
+
+        return githubRaw("db/" + VZVOD + "/schedule_" + key + ".json")
+          .then(function (res) {
+            if (res.status === 404) {
+              schedule = { days: {} };
+              statusEl.textContent = "На эту неделю расписания нет";
+              render();
+              return;
+            }
+            if (!res.ok) throw new Error("Ошибка " + res.status);
+            return res.json().then(function (data) {
+              schedule = data || { days: {} };
+              cacheSet(key, schedule);
+              statusEl.textContent = "";
+              render();
+            });
+          })
+          .catch(function (e) {
+            if (!schedule) {
+              app.innerHTML = '<div class="error">Не удалось загрузить<br>' + esc(e.message) + "</div>";
+              statusEl.textContent = "";
+            } else {
+              statusEl.textContent = "Оффлайн · кэш";
+              render();
+            }
+          });
+      }
+
+      function viewDay() {
+        var today = startOfDay(new Date());
+        if (sameDay(selectedDay, today) && schedule && finished(today)) {
+          return addDays(today, 1);
+        }
+        return selectedDay;
+      }
+
+      function render() {
+        if (!schedule) {
+          app.innerHTML = '<div class="loader">Загрузка…</div>';
+          return;
+        }
+
+        var today = startOfDay(new Date());
+        var day = viewDay();
+        var autoTomorrow = !sameDay(selectedDay, day);
+
+        if (autoTomorrow) {
+          dayTitle.textContent = "Завтра · " + formatRu(day);
+          daySub.textContent = "Пары на сегодня уже закончились";
+        } else if (sameDay(day, today)) {
+          dayTitle.textContent = formatRu(day);
+          daySub.textContent = "Сегодня";
+        } else if (sameDay(day, addDays(today, 1))) {
+          dayTitle.textContent = formatRu(day);
+          daySub.textContent = "Завтра";
+        } else if (sameDay(day, addDays(today, -1))) {
+          dayTitle.textContent = formatRu(day);
+          daySub.textContent = "Вчера";
+        } else {
+          dayTitle.textContent = formatRu(day);
+          daySub.textContent = "";
+        }
+
+        if (weekKey(mondayOf(day)) !== currentWeekKey) {
+          selectedDay = day;
+          loadWeek(false);
+          return;
+        }
+
+        var list = lessonsFor(day);
+        var map = mapFor(day);
+        var live = sameDay(day, today) || autoTomorrow;
+        var html = "";
+
+        if (live) {
+          html += '<div class="muted" style="margin-bottom:8px;">Сейчас</div>';
+          if (!map.previous && !map.current && !map.next) {
+            html += '<div class="card muted">Сейчас пар нет</div>';
+          } else {
+            if (map.current) html += card(map.current, { current: true, day: day });
+            if (map.next) html += card(map.next, { next: true, day: day });
+            if (map.previous && !map.current) html += card(map.previous, { day: day });
+          }
+          html += '<div class="muted" style="margin:16px 0 8px;">Пары</div>';
+        }
+
+        if (!list.length) {
+          html += '<div class="card empty">Пар нет</div>';
+        } else {
+          for (var i = 0; i < list.length; i++) {
+            var l = list[i];
+            var isCur = map.current && l.start === map.current.start && l.subject === map.current.subject;
+            var isNext = map.next && l.start === map.next.start && l.subject === map.next.subject;
+            html += card(l, { current: isCur, next: isNext, day: day });
+          }
+        }
+        app.innerHTML = html;
+      }
+
+      function setTheme(mode) {
+        if (mode === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        else document.documentElement.removeAttribute("data-theme");
+        localStorage.setItem(THEME_KEY, mode);
+      }
+      function initTheme() {
+        var saved = localStorage.getItem(THEME_KEY);
+        if (saved === "dark" || saved === "light") setTheme(saved);
+        else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) setTheme("dark");
+        else setTheme("light");
+      }
+
+      function loadNotif() {
+        githubRaw("db/notification.json")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data || !data.title) return;
+            var id = String(data.id || data.updated_at || data.title);
+            if (localStorage.getItem(NOTIF_KEY) === id) {
+              notifBanner.style.display = "none";
+              return;
+            }
+            notifBanner.style.display = "block";
+            notifBanner.innerHTML =
+              '<div class="banner-top"><div><strong>' + esc(data.title) +
+              '</strong><div class="muted" style="margin-top:4px;">' + esc(data.body || "") +
+              '</div></div><button class="ghost" type="button" id="closeNotif">Закрыть</button></div>';
+            document.getElementById("closeNotif").onclick = function () {
+              localStorage.setItem(NOTIF_KEY, id);
+              notifBanner.style.display = "none";
+            };
+          })
+          .catch(function () {});
+      }
+
+      function loadConfig() {
+        githubRaw("db/app_config.json")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (cfg) {
+            if (!cfg) return;
+            var type = cfg.update_type || (cfg.force_update ? "force" : "none");
+            if (type === "none" && !cfg.blocked) {
+              updateBanner.style.display = "none";
+              return;
+            }
+            var fp = [type, cfg.latest_version || "", cfg.min_version || "", cfg.blocked ? "1" : "0", cfg.message || ""].join("|");
+            if (localStorage.getItem(UPDATE_KEY) === fp) {
+              updateBanner.style.display = "none";
+              return;
+            }
+            var title = cfg.blocked ? "Важное сообщение" : type === "force" ? "Обновление Android-приложения" : "Доступно обновление";
+            var body = cfg.blocked ? (cfg.block_message || cfg.message || "") : (cfg.message || "");
+            updateBanner.style.display = "block";
+            updateBanner.innerHTML =
+              '<div class="banner-top"><div><strong>' + esc(title) +
+              '</strong><div class="muted" style="margin-top:4px;">' + esc(body) + "</div>" +
+              (cfg.apk_url ? '<div style="margin-top:8px;"><a href="' + esc(cfg.apk_url) + '" style="color:var(--primary);font-weight:700;">Скачать APK</a></div>' : "") +
+              '</div><button class="ghost" type="button" id="closeUpd">Закрыть</button></div>';
+            document.getElementById("closeUpd").onclick = function () {
+              localStorage.setItem(UPDATE_KEY, fp);
+              updateBanner.style.display = "none";
+            };
+          })
+          .catch(function () {});
+      }
+
+      document.getElementById("btnTheme").onclick = function () {
+        setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+      };
+      document.getElementById("btnRefresh").onclick = function () {
+        loadWeek(true);
+        loadNotif();
+        loadConfig();
+      };
+      document.getElementById("btnDayPrev").onclick = function () {
+        selectedDay = addDays(selectedDay, -1);
+        if (weekKey(mondayOf(selectedDay)) !== currentWeekKey) loadWeek(false);
+        else render();
+      };
+      document.getElementById("btnDayNext").onclick = function () {
+        selectedDay = addDays(selectedDay, 1);
+        if (weekKey(mondayOf(selectedDay)) !== currentWeekKey) loadWeek(false);
+        else render();
+      };
+      document.getElementById("btnWeekPrev").onclick = function () {
+        selectedDay = addDays(mondayOf(selectedDay), -7);
+        loadWeek(false);
+      };
+      document.getElementById("btnWeekNext").onclick = function () {
+        selectedDay = addDays(mondayOf(selectedDay), 7);
+        loadWeek(false);
+      };
+      document.getElementById("btnToday").onclick = function () {
+        selectedDay = startOfDay(new Date());
+        loadWeek(false);
+      };
+
+      initTheme();
+      loadWeek(false);
+      loadNotif();
+      loadConfig();
+      setInterval(function () {
+        if (schedule) render();
+      }, 30000);
+    })();
+  </script>
+</body>
+</html>
